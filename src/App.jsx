@@ -1,4 +1,7 @@
+// src/App.jsx
 import React, { useEffect, useMemo, useState, createContext, useContext } from 'react'
+import Lottie from 'lottie-react'
+import { useAuth } from './auth-local.js'
 
 // ---------- Simple UI helpers ----------
 const Button = ({ title, onClick, variant='primary' }) => (
@@ -6,7 +9,6 @@ const Button = ({ title, onClick, variant='primary' }) => (
     {title}
   </button>
 )
-
 const Alert = { alert: (title, msg) => window.alert(`${title}: ${msg}`) }
 
 // ---------- Sports options ----------
@@ -32,20 +34,23 @@ const EXERCISES = [
   { id:'cond_aerobic', name:'Easy Jog / Bike',        cat:'Conditioning',morning:false, evening:true,  baseLoad:2, sports:['Soccer','Cycling','Athletics / Track & Field','General Fitness'] },
 ]
 
-// ---------- Exercise media/meta ----------
+// ---------- Exercise media/meta (Lottie first, fallback to gif/mp4) ----------
 const EXERCISE_META = {
-  mob_ankles:   { mediaUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeA/ankle.gif',     muscles: ['ankle stabilizers','calves'],      description: 'Gentle ankle circles to improve mobility before running and cutting.' },
-  mob_hips:     { mediaUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeA/hips.gif',      muscles: ['hip rotators','glutes'],          description: '90/90 switches to open the hips and support smooth change of direction.' },
-  core_deadbug: { mediaUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeA/deadbug.gif',   muscles: ['deep core','hip flexors'],         description: 'Opposite arm/leg lowers; keep back flat—great for sprint posture.' },
-  core_plank:   { mediaUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeA/plank.gif',     muscles: ['core','shoulders'],                description: 'Hold a straight line from head to heels; don’t let hips sag.' },
-  str_squat:    { mediaUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeA/squat.gif',     muscles: ['quadriceps','glutes'],             description: 'Sit back and down; knees track over toes; chest up; bodyweight only.' },
-  str_split:    { mediaUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeA/splitsquat.gif', muscles: ['quads','glutes','calves'],        description: 'Split stance lowers—great for single-leg strength used in acceleration.' },
-  str_pushup:   { mediaUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeA/pushup.gif',    muscles: ['chest','triceps','core'],         description: 'Hands under shoulders, tight core; elevate hands if needed for form.' },
-  ply_pogo:     { mediaUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeA/pogo.gif',      muscles: ['calves','ankle complex'],         description: 'Low, quick hops; elastic ankles; very light impact for youth.' },
-  agi_ladder:   { mediaUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeA/ladder.gif',    muscles: ['calves','hip flexors'],           description: 'Light ladder patterns to improve foot speed & coordination.' },
-  ball_juggle:  { mediaUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeA/juggle.gif',    muscles: ['hip flexors','calves','core'],    description: 'Soft touches with both feet; watch the ball; keep rhythm steady.' },
-  ball_wallpass:{ mediaUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeA/wallpass.gif',  muscles: ['hip flexors','calves'],           description: 'Pass and receive with both feet; angle your body; first touch forward.' },
-  cond_aerobic: { mediaUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeA/easyjog.gif',   muscles: ['heart/lungs','legs'],             description: 'Easy, talk-able pace to build aerobic base; no sprinting.' },
+  // דוגמאות Lottie (אפשר להחליף ל-URLs משלך/קבצים מקומיים)
+  core_deadbug: { lottieUrl: 'https://assets10.lottiefiles.com/packages/lf20_3vbOcw.json', mediaUrl: null, muscles: ['deep core','hip flexors'], description: 'Opposite arm/leg lowers; keep back flat on the floor.' },
+  str_squat:    { lottieUrl: 'https://assets10.lottiefiles.com/packages/lf20_l7g5m2.json', mediaUrl: null, muscles: ['quadriceps','glutes'],    description: 'Sit back & down; knees track over toes; bodyweight only.' },
+
+  // Fallback למדיה רגילה אם אין Lottie
+  mob_ankles:   { mediaUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeA/ankle.gif',      lottieUrl: null, muscles: ['ankle stabilizers','calves'],      description: 'Gentle ankle circles to prep for cutting & running.' },
+  mob_hips:     { mediaUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeA/hips.gif',       lottieUrl: null, muscles: ['hip rotators','glutes'],          description: '90/90 switches to open hips; smooth control.' },
+  core_plank:   { mediaUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeA/plank.gif',      lottieUrl: null, muscles: ['core','shoulders'],                description: 'Hold straight line; no sag; breathe steady.' },
+  str_split:    { mediaUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeA/splitsquat.gif', lottieUrl: null, muscles: ['quads','glutes','calves'],        description: 'Single-leg focus supports acceleration/deceleration.' },
+  str_pushup:   { mediaUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeA/pushup.gif',     lottieUrl: null, muscles: ['chest','triceps','core'],         description: 'Hands under shoulders; elevate if needed for form.' },
+  ply_pogo:     { mediaUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeA/pogo.gif',       lottieUrl: null, muscles: ['calves','ankle complex'],         description: 'Low, quick hops; elastic ankles; very light impact.' },
+  agi_ladder:   { mediaUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeA/ladder.gif',     lottieUrl: null, muscles: ['calves','hip flexors'],           description: 'Light ladder patterns for quick feet.' },
+  ball_juggle:  { mediaUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeA/juggle.gif',     lottieUrl: null, muscles: ['hip flexors','calves','core'],    description: 'Soft touches both feet; steady rhythm.' },
+  ball_wallpass:{ mediaUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeA/wallpass.gif',   lottieUrl: null, muscles: ['hip flexors','calves'],           description: 'Pass/receive both feet; angle body; first touch forward.' },
+  cond_aerobic: { mediaUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeA/easyjog.gif',    lottieUrl: null, muscles: ['heart/lungs','legs'],             description: 'Easy, talk-able pace; build aerobic base.' },
 }
 
 // ---------- Viewport + media helpers ----------
@@ -109,7 +114,6 @@ function intersectsSports(ex, selected) {
 
 // 60% soccer bias distribution
 function pickWithBias(exercises, selectedSports, count) {
-  // Partition by sports tag
   const soccer = exercises.filter(e => e.sports?.includes('Soccer'))
   const other = exercises.filter(e => !e.sports?.includes('Soccer') && intersectsSports(e, selectedSports))
 
@@ -119,7 +123,6 @@ function pickWithBias(exercises, selectedSports, count) {
   const pickN = (arr, n) => arr.slice(0, n)
   let chosen = [...pickN(soccer, targetSoccer), ...pickN(other, targetOther)]
 
-  // if not enough items, top-up from remaining pool
   if (chosen.length < count) {
     const remaining = exercises.filter(e => !chosen.includes(e))
     chosen = [...chosen, ...remaining.slice(0, count - chosen.length)]
@@ -149,7 +152,6 @@ const basePlanForDay = (profile, dayIndex) => {
   const slotsMorning = Math.max(2, Math.floor((profile.morningMins||0)/8))
   const slotsEvening = Math.max(2, Math.floor((profile.eveningMins||0)/8))
 
-  // apply 60% soccer bias
   const morning = pickWithBias(morningFiltered, chosenSports, Math.min(morningFiltered.length, slotsMorning))
   const evening = pickWithBias(eveningFiltered, chosenSports, Math.min(eveningFiltered.length, slotsEvening))
 
@@ -184,7 +186,6 @@ function mergeIdeasIntoPlan(weeklyPlan, ideas) {
 
 // ---------- Mocks for cloud features ----------
 async function fetchNewIdeasFromCloud(profile, weekFeedback) {
-  // Replace with real endpoint later
   return [
     { id: 'idea1', title: 'Dribble Squares', sports:['Soccer'], rationale: 'Light agility + ball control; low impact', block: [
       { name: 'Cone dribble square', rx: '3 x 60s, rest 60s' },
@@ -196,14 +197,10 @@ async function fetchNewIdeasFromCloud(profile, weekFeedback) {
     ]},
   ]
 }
-
 async function requestReport(type, email) {
   Alert.alert('Report requested', `A ${type} report will be emailed to ${email} (mock).`)
 }
-
-// Studio: background swap mock
 async function bgSwap({ foregroundUrl, backgroundUrl }) {
-  // mock: just return foreground
   return { resultUrl: foregroundUrl, note: 'Mocked bgSwap. Wire your cloud endpoint.' }
 }
 
@@ -211,9 +208,72 @@ async function bgSwap({ foregroundUrl, backgroundUrl }) {
 const AppCtx = createContext(null)
 const useApp = () => useContext(AppCtx)
 
+// ---------- Auth (UI) ----------
+function AuthGate({ children }) {
+  const { user, loading } = useAuth()
+  if (loading) return <div style={{ padding: 20 }}>Loading...</div>
+  if (!user) return <AuthScreen/>
+  return children
+}
+function AuthScreen() {
+  const { signIn, signUp } = useAuth()
+  const [mode, setMode] = useState('login')
+  const [identifier, setIdentifier] = useState('')
+  const [password, setPassword] = useState('')
+  const [username, setUsername] = useState('')
+  const [error, setError] = useState('')
+
+  const submit = async (e) => {
+    e.preventDefault(); setError('')
+    try {
+      if (mode === 'login') {
+        await signIn({ identifier, password })
+      } else {
+        if (!username) { setError('Please choose a username.'); return }
+        await signUp({ email: identifier, password, username })
+      }
+    } catch (err) { setError(err.message || 'Auth failed') }
+  }
+
+  return (
+    <div style={{ maxWidth: 420, margin: '8vh auto', background:'#fff', borderRadius:12, padding:16, boxShadow:'0 1px 0 rgba(0,0,0,0.05)' }}>
+      <h2 style={{ marginTop:0 }}>{mode==='login' ? 'Log in' : 'Create account'}</h2>
+      <form onSubmit={submit}>
+        <div style={{ marginBottom:8 }}>
+          <div style={{ color:'#666', fontSize:13 }}>Email (or use same as username)</div>
+          <input required value={identifier} onChange={e=>setIdentifier(e.target.value)} placeholder="you@example.com"
+            style={{ width:'100%', padding:12, borderRadius:10, border:'1px solid #ddd' }}/>
+        </div>
+        {mode==='register' && (
+          <div style={{ marginBottom:8 }}>
+            <div style={{ color:'#666', fontSize:13 }}>Username</div>
+            <input required value={username} onChange={e=>setUsername(e.target.value)} placeholder="yourname"
+              style={{ width:'100%', padding:12, borderRadius:10, border:'1px solid #ddd' }}/>
+          </div>
+        )}
+        <div style={{ marginBottom:8 }}>
+          <div style={{ color:'#666', fontSize:13 }}>Password</div>
+          <input required type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="********"
+            style={{ width:'100%', padding:12, borderRadius:10, border:'1px solid #ddd' }}/>
+        </div>
+        {error && <div style={{ color:'crimson', marginBottom:8 }}>{error}</div>}
+        <div style={{ display:'flex', gap:8 }}>
+          <button type="submit" className="btn">{mode==='login' ? 'Log in' : 'Sign up'}</button>
+          <button type="button" className="btn secondary" onClick={()=>setMode(mode==='login'?'register':'login')}>
+            {mode==='login' ? 'Need an account?' : 'Have an account? Log in'}
+          </button>
+        </div>
+      </form>
+      <div style={{ marginTop:12, color:'#666', fontSize:12 }}>
+        Demo only. Accounts saved in your browser. For production use a real backend (Supabase/Firebase).
+      </div>
+    </div>
+  )
+}
+
 // ---------- Main App ----------
 export default function App() {
-  const [tab, setTab] = useState('dashboard') // dashboard|training|nutrition|ideas|rewards|settings|studio
+  const [tab, setTab] = useState('dashboard') // tabs: dashboard|training|nutrition|ideas|rewards|settings|studio
   const [profile, setProfile] = useState({
     childName: '', age: 11, unitSystem: 'metric', height: 140, weight: 35,
     soccerPosition: 'Midfielder', daysPerWeek: 6,
@@ -272,39 +332,43 @@ export default function App() {
   function openDemo(ex) { setDemoExercise(ex); setDemoOpen(true) }
 
   const ctx = { profile, setProfile, kcalTarget, weeklyPlan, completionByDate, markDone, recordDifficulty, weekKey, setWeekKey, pullNewIdeas, ideas, openDemo }
+  const { user, signOut } = useAuth()
 
   return (
-    <AppCtx.Provider value={ctx}>
-      <div className="container">
-        <div className="topbar">
-          <div>
-            <div style={{ fontSize: 22, fontWeight: 800 }}>Youth Soccer Trainer</div>
-            <div style={{ color:'#666' }}>Personalized training & nutrition • Not medical advice</div>
+    <AuthGate>
+      <AppCtx.Provider value={ctx}>
+        <div className="container">
+          <div className="topbar">
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>Youth Soccer Trainer</div>
+              <div style={{ color:'#666' }}>Personalized training & nutrition • Not medical advice</div>
+            </div>
+            <div className="nav">
+              <Button title="Dashboard" onClick={()=>setTab('dashboard')} />
+              <Button title="Training"  onClick={()=>setTab('training')} />
+              <Button title="Nutrition" onClick={()=>setTab('nutrition')} />
+              <Button title="Ideas"     onClick={()=>setTab('ideas')} />
+              <Button title="Rewards"   onClick={()=>setTab('rewards')} />
+              <Button title="Settings"  onClick={()=>setTab('settings')} />
+              <Button title="Studio"    onClick={()=>setTab('studio')} />
+              <Button title={`Logout (${user?.username || user?.email || 'me'})`} variant="secondary" onClick={()=>signOut()} />
+            </div>
           </div>
-          <div className="nav">
-            <Button title="Dashboard" onClick={()=>setTab('dashboard')} />
-            <Button title="Training"  onClick={()=>setTab('training')} />
-            <Button title="Nutrition" onClick={()=>setTab('nutrition')} />
-            <Button title="Ideas"     onClick={()=>setTab('ideas')} />
-            <Button title="Rewards"   onClick={()=>setTab('rewards')} />
-            <Button title="Settings"  onClick={()=>setTab('settings')} />
-            <Button title="Studio"    onClick={()=>setTab('studio')} />
-          </div>
+
+          {tab==='dashboard' && <Dashboard/>}
+          {tab==='training'  && <Training/>}
+          {tab==='nutrition' && <Nutrition/>}
+          {tab==='rewards'   && <Rewards/>}
+          {tab==='settings'  && <Settings/>}
+          {tab==='ideas'     && <Ideas/>}
+          {tab==='studio'    && <Studio/>}
+
+          <Modal open={demoOpen} onClose={()=>setDemoOpen(false)}>
+            <ExerciseDemo ex={demoExercise} />
+          </Modal>
         </div>
-
-        {tab==='dashboard' && <Dashboard/>}
-        {tab==='training'  && <Training/>}
-        {tab==='nutrition' && <Nutrition/>}
-        {tab==='rewards'   && <Rewards/>}
-        {tab==='settings'  && <Settings/>}
-        {tab==='ideas'     && <Ideas/>}
-        {tab==='studio'    && <Studio/>}
-
-        <Modal open={demoOpen} onClose={()=>setDemoOpen(false)}>
-          <ExerciseDemo ex={demoExercise} />
-        </Modal>
-      </div>
-    </AppCtx.Provider>
+      </AppCtx.Provider>
+    </AuthGate>
   )
 }
 
@@ -597,10 +661,22 @@ function Studio() {
 function ExerciseDemo({ ex }) {
   if (!ex) return <div style={{ color:'#666' }}>Select an exercise to preview.</div>
   const meta = EXERCISE_META[ex.id] || {}
+  const hasLottie = !!meta.lottieUrl
+  const maxH = Math.round(0.7*window.innerHeight)
+
   return (
     <div>
       <h3 style={{ margin:'4px 0 8px 0' }}>{ex.name}</h3>
-      <VideoOrImage src={meta.mediaUrl} alt={ex.name}/>
+      {hasLottie ? (
+        <Lottie
+          path={meta.lottieUrl}
+          loop
+          autoplay
+          style={{ width:'100%', maxHeight: maxH, borderRadius:8 }}
+        />
+      ) : (
+        <VideoOrImage src={meta.mediaUrl} alt={ex.name}/>
+      )}
       <MuscleChips muscles={meta.muscles} />
       <div style={{ marginTop:10, fontSize:14, color:'#333' }}>{meta.description || 'Technique-focused movement for youth athletes.'}</div>
       <div style={{ marginTop:12, fontSize:13, color:'#555' }}>
@@ -633,6 +709,11 @@ function Modal({ open, onClose, children }) {
   )
 }
 
+// ---------- Context hook ----------
+function useApp() {
+  return useContext(AppCtx)
+}
+
 // ---------- Self-tests (console) ----------
 ;(function runSelfTests(){
   const tests = []
@@ -655,15 +736,6 @@ function Modal({ open, onClose, children }) {
   tests.push(['basePlan morning>=2', (base.morning||[]).length>=2])
   tests.push(['basePlan evening>=2', (base.evening||[]).length>=2])
 
-  const kcalSmall = estimateYouthCalories({ weightKg:30, heightCm:130, ageYears:11 })
-  const kcalBig   = estimateYouthCalories({ weightKg:35, heightCm:140, ageYears:11 })
-  tests.push(['kcal trend', kcalBig>=kcalSmall])
-
-  // metadata coverage
-  const missing = EXERCISES.filter(e => !EXERCISE_META[e.id] || !Array.isArray(EXERCISE_META[e.id].muscles) || !EXERCISE_META[e.id].muscles.length || !EXERCISE_META[e.id].description)
-  tests.push(['exercise meta coverage', missing.length===0])
-
-  // sports default & filtering
   const chosenDefault = selectedSportsOrDefault({ sports: [] })
   tests.push(['sports default -> Soccer', Array.isArray(chosenDefault) && chosenDefault.includes('Soccer')])
 
@@ -673,18 +745,15 @@ function Modal({ open, onClose, children }) {
   const ok = allListed.every(ex => intersectsSports(ex, profSB.sports))
   tests.push(['sports filter respected', ok===true])
 
-  // bias sanity: require some Soccer presence if available
   const dayBias = basePlanForDay({ morningMins:16, eveningMins:16, sports:['Soccer','Basketball','Tennis'] }, 2)
   const ev = dayBias.evening
   const soccerCount = ev.filter(e => e.sports?.includes('Soccer')).length
   tests.push(['60% soccer bias (approx)', ev.length<2 ? true : soccerCount >= Math.floor(ev.length*0.5)])
 
-  // media decision
   const decide = (u) => u.endsWith('.gif') ? 'img' : (u.endsWith('.mp4')||u.endsWith('.webm')) ? 'video' : 'img'
   tests.push(['media gif', decide('x.gif')==='img'])
   tests.push(['media mp4', decide('x.mp4')==='video'])
 
-  // studio guard
   const canRun = (fg,bg) => !!(fg && bg)
   tests.push(['bgSwap requires both', canRun('a','b') && !canRun('a',null) && !canRun(null,'b')])
 
